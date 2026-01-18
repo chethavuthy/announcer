@@ -5,3 +5,6 @@ dist/
 *.db-journal
 .DS_Store
 *.log
+.vercel
+yarn.lock
+package-lock.json
