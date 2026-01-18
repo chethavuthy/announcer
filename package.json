@@ -1,0 +1,31 @@
+{
+  "name": "ch-support-bot",
+  "version": "1.0.0",
+  "description": "Telegram support bot with welcome messages and admin features",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "reset-db": "node scripts/reset-db.js",
+    "vercel-build": "npm run build"
+  },
+  "keywords": ["telegram", "bot", "support"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "telegraf": "^4.15.6",
+    "better-sqlite3": "^9.2.2",
+    "dotenv": "^16.3.1",
+    "@vercel/node": "^3.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@types/better-sqlite3": "^7.6.8",
+    "typescript": "^5.3.3",
+    "ts-node-dev": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}
