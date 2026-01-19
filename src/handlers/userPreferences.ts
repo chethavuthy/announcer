@@ -34,21 +34,21 @@ export async function handleSetGroupCommand(ctx: Context): Promise<void> {
       const group = await GroupModel.getByTelegramId(preferredGroup);
       const groupTitle = group?.title || 'Unknown Group';
       await ctx.reply(
-        `📋 *Current Setting*\n\n` +
+        `📋 <b>Current Setting</b>\n\n` +
         `Your private chat is linked to:\n` +
-        `Group ID: \`${preferredGroup}\`\n` +
+        `Group ID: <code>${preferredGroup}</code>\n` +
         `Group Name: ${groupTitle}\n\n` +
-        `To change: \`/setgroup <group_id>\`\n` +
-        `To reset: \`/setgroup reset\``,
-        { parse_mode: 'Markdown' }
+        `To change: <code>/setgroup &lt;group_id&gt;</code>\n` +
+        `To reset: <code>/setgroup reset</code>`,
+        { parse_mode: 'HTML' }
       );
     } else {
       await ctx.reply(
-        `📋 *Current Setting*\n\n` +
+        `📋 <b>Current Setting</b>\n\n` +
         `You haven't linked your private chat to any group yet.\n\n` +
-        `Usage: \`/setgroup <group_id>\`\n\n` +
+        `Usage: <code>/setgroup &lt;group_id&gt;</code>\n\n` +
         `This will make your private chat buttons use the custom messages from that group.`,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'HTML' }
       );
     }
     return;
@@ -97,11 +97,11 @@ export async function handleSetGroupCommand(ctx: Context): Promise<void> {
   
   const groupTitle = group?.title || 'the group';
   await ctx.reply(
-    `✅ *Private Chat Linked!*\n\n` +
+    `✅ <b>Private Chat Linked!</b>\n\n` +
     `Your private chat is now linked to:\n` +
-    `Group ID: \`${groupId}\`\n` +
+    `Group ID: <code>${groupId}</code>\n` +
     `Group Name: ${groupTitle}\n\n` +
     `You will see custom messages from this group when using keyboard buttons.`,
-    { parse_mode: 'Markdown' }
+    { parse_mode: 'HTML' }
   );
 }

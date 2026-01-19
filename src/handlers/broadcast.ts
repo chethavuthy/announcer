@@ -4,6 +4,7 @@ import { StateManager } from '../utils/state';
 import { ensureUserExists, isPrivateChat, extractGroupId, ensureGroupExists } from '../utils/validation';
 import { parseWelcomeMessage } from '../utils/messageParser';
 import { BroadcastLogModel } from '../database/models';
+import { formatMessageForStorage } from '../utils/telegramFormatter';
 
 export async function handleBroadcastCommand(ctx: Context): Promise<void> {
   const chat = ctx.chat;
@@ -41,11 +42,11 @@ export async function handleBroadcastCommand(ctx: Context): Promise<void> {
   await ensureGroupExists(groupId);
 
   await ctx.reply(
-    `📢 *Broadcast to Group ${groupId}*\n\n` +
+    `📢 <b>Broadcast to Group ${groupId}</b>\n\n` +
     `Please reply with your broadcast message.\n\n` +
-    `*Variables:*\n• {{name}} - User's first name\n• {{username}} - User's @username\n\n` +
+    `<b>Variables:</b>\n• {{name}} - User's first name\n• {{username}} - User's @username\n\n` +
     `Type /cancel to cancel.`,
-    { parse_mode: 'Markdown' }
+    { parse_mode: 'HTML' }
   );
   
   StateManager.setWaiting(from.id, `broadcast:${groupId}`);
@@ -69,6 +70,7 @@ export async function handleBroadcastSend(ctx: Context): Promise<boolean> {
   }
 
   const messageText = message.text;
+  const entities = 'entities' in message ? message.entities : undefined;
   
   if (!messageText) {
     await ctx.reply('❌ Please send a text message.');
@@ -96,25 +98,28 @@ export async function handleBroadcastSend(ctx: Context): Promise<boolean> {
     from.language_code || null
   );
 
+  // Format message for storage (convert entities to HTML)
+  const formattedMessage = formatMessageForStorage(messageText, entities);
+
   const groupId = waitingFor.split(':')[1];
 
   try {
     // Parse message (no user context for broadcast)
-    const parsedMessage = parseWelcomeMessage(messageText, 'there', undefined);
+    const parsedMessage = parseWelcomeMessage(formattedMessage, 'there', undefined);
     
     // Send broadcast to group
-    await ctx.telegram.sendMessage(groupId, parsedMessage, { parse_mode: 'Markdown' });
+    await ctx.telegram.sendMessage(groupId, parsedMessage, { parse_mode: 'HTML' });
     
-    // Log successful broadcast
-    await BroadcastLogModel.create(groupId, messageText, userTelegramId, true);
+    // Log successful broadcast (store formatted message)
+    await BroadcastLogModel.create(groupId, formattedMessage, userTelegramId, true);
     
     await ctx.reply(`✅ Broadcast sent successfully to group ${groupId}!`);
   } catch (error) {
     console.error('Broadcast error:', error);
     
-    // Log failed broadcast
+    // Log failed broadcast (store formatted message)
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-    await BroadcastLogModel.create(groupId, messageText, userTelegramId, false, errorMsg);
+    await BroadcastLogModel.create(groupId, formattedMessage, userTelegramId, false, errorMsg);
     
     await ctx.reply(
       `❌ Failed to send broadcast to group ${groupId}.\n\n` +

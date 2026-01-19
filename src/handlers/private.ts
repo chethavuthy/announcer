@@ -45,19 +45,19 @@ export async function handlePrivateMessage(ctx: Context): Promise<void> {
   if (text.includes('referral')) {
     await ButtonClickModel.create(userId, 'referral_link', preferredGroupId);
     const parsedMessage = parseWelcomeMessage(referralMsg, name, username);
-    await ctx.reply(parsedMessage, { reply_markup: getKeyboardButtons(), parse_mode: 'Markdown' });
+    await ctx.reply(parsedMessage, { reply_markup: getKeyboardButtons(), parse_mode: 'HTML' });
   } else if (text.includes('live trade') || text.includes('trade channel')) {
     await ButtonClickModel.create(userId, 'live_trade_channel', preferredGroupId);
     const parsedMessage = parseWelcomeMessage(liveTradeMsg, name, username);
-    await ctx.reply(parsedMessage, { reply_markup: getKeyboardButtons(), parse_mode: 'Markdown' });
+    await ctx.reply(parsedMessage, { reply_markup: getKeyboardButtons(), parse_mode: 'HTML' });
   } else if (text.includes('contact') || text.includes('admin')) {
     await ButtonClickModel.create(userId, 'contact_admin', preferredGroupId);
     const parsedMessage = parseWelcomeMessage(adminMsg, name, username);
-    await ctx.reply(parsedMessage, { reply_markup: getKeyboardButtons(), parse_mode: 'Markdown' });
+    await ctx.reply(parsedMessage, { reply_markup: getKeyboardButtons(), parse_mode: 'HTML' });
   } else if (text.includes('copy trade') || text.includes('copy')) {
     await ButtonClickModel.create(userId, 'copy_trade', preferredGroupId);
     const parsedMessage = parseWelcomeMessage(copyTradeMsg, name, username);
-    await ctx.reply(parsedMessage, { reply_markup: getKeyboardButtons(), parse_mode: 'Markdown' });
+    await ctx.reply(parsedMessage, { reply_markup: getKeyboardButtons(), parse_mode: 'HTML' });
   } else {
     // Default response with keyboard
     await ctx.reply(

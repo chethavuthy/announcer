@@ -4,6 +4,7 @@ import { GroupConfigModel, WelcomeMessageModel } from '../database/models';
 import { StateManager } from '../utils/state';
 import { ensureUserExists, isPrivateChat, extractGroupId } from '../utils/validation';
 import { getDefaultMessage } from '../utils/defaults';
+import { formatMessageForStorage } from '../utils/telegramFormatter';
 
 type ConfigType = 'welcome_message' | 'referral' | 'live_trade' | 'admin_contacts' | 'copy_trade';
 
@@ -24,22 +25,22 @@ export async function handleConfigCommand(ctx: Context): Promise<void> {
   }
 
   await ctx.reply(
-    '⚙️ *Bot Configuration Commands*\n\n' +
-    '*Group Configuration:*\n' +
-    '1️⃣ `/welcome_message <group_id>` - Set welcome message\n' +
-    '2️⃣ `/referral <group_id>` - Set referral message\n' +
-    '3️⃣ `/live_trade <group_id>` - Set live trade channel message\n' +
-    '4️⃣ `/admin_contacts <group_id>` - Set admin contacts message\n' +
-    '5️⃣ `/copy_trade <group_id>` - Set copy trade message\n\n' +
-    '*User Preferences:*\n' +
-    '6️⃣ `/setgroup <group_id>` - Link private chat to a group\n\n' +
-    '*Broadcast:*\n' +
-    '7️⃣ `/broadcast <group_id>` - Send message to a group\n\n' +
-    '📋 *To get group ID:*\n' +
+    '⚙️ <b>Bot Configuration Commands</b>\n\n' +
+    '<b>Group Configuration:</b>\n' +
+    '1️⃣ <code>/welcome_message &lt;group_id&gt;</code> - Set welcome message\n' +
+    '2️⃣ <code>/referral &lt;group_id&gt;</code> - Set referral message\n' +
+    '3️⃣ <code>/live_trade &lt;group_id&gt;</code> - Set live trade channel message\n' +
+    '4️⃣ <code>/admin_contacts &lt;group_id&gt;</code> - Set admin contacts message\n' +
+    '5️⃣ <code>/copy_trade &lt;group_id&gt;</code> - Set copy trade message\n\n' +
+    '<b>User Preferences:</b>\n' +
+    '6️⃣ <code>/setgroup &lt;group_id&gt;</code> - Link private chat to a group\n\n' +
+    '<b>Broadcast:</b>\n' +
+    '7️⃣ <code>/broadcast &lt;group_id&gt;</code> - Send message to a group\n\n' +
+    '📋 <b>To get group ID:</b>\n' +
     '• Add @userinfobot to your group\n' +
     '• Forward any message from the group to @userinfobot\n' +
     '• It will show you the group ID',
-    { parse_mode: 'Markdown' }
+    { parse_mode: 'HTML' }
   );
 }
 
@@ -99,9 +100,9 @@ async function handleConfigSetup(ctx: Context, configType: ConfigType): Promise<
   if (configType === 'welcome_message') {
     const welcomeData = await WelcomeMessageModel.getByGroupId(groupId);
     currentValue = welcomeData?.message_text || process.env.WELCOME_MESSAGE || 'Not set';
-    prompt = `📝 *Current Welcome Message:*\n\n${currentValue}\n\n` +
+    prompt = `📝 <b>Current Welcome Message:</b>\n\n${currentValue}\n\n` +
       `Please reply with your new welcome message.\n\n` +
-      `*Variables:*\n• {{name}} - User's first name\n• {{username}} - User's @username\n\n` +
+      `<b>Variables:</b>\n• {{name}} - User's first name\n• {{username}} - User's @username\n\n` +
       `Type /cancel to cancel.`;
   } else {
     const config = await GroupConfigModel.getByGroupId(groupId);
@@ -115,13 +116,13 @@ async function handleConfigSetup(ctx: Context, configType: ConfigType): Promise<
 
     const info = fieldMap[configType];
     currentValue = config?.[info.field] || getDefaultMessage(configType as any);
-    prompt = `${info.emoji} *Current ${info.name} Message:*\n\n${currentValue}\n\n` +
+    prompt = `${info.emoji} <b>Current ${info.name} Message:</b>\n\n${currentValue}\n\n` +
       `Please reply with your new ${info.name.toLowerCase()} message.\n\n` +
-      `*Variables:*\n• {{name}} - User's first name\n• {{username}} - User's @username\n\n` +
+      `<b>Variables:</b>\n• {{name}} - User's first name\n• {{username}} - User's @username\n\n` +
       `Type /cancel to cancel.`;
   }
 
-  await ctx.reply(prompt, { parse_mode: 'Markdown' });
+  await ctx.reply(prompt, { parse_mode: 'HTML' });
   StateManager.setWaiting(from.id, `${configType}:${groupId}`);
 }
 
@@ -143,6 +144,7 @@ export async function handleConfigUpdate(ctx: Context): Promise<boolean> {
   }
 
   const messageText = message.text;
+  const entities = 'entities' in message ? message.entities : undefined;
   
   if (!messageText) {
     await ctx.reply('❌ Please send a text message.');
@@ -170,31 +172,34 @@ export async function handleConfigUpdate(ctx: Context): Promise<boolean> {
     from.language_code || null
   );
 
+  // Format message for storage (convert entities to HTML)
+  const formattedMessage = formatMessageForStorage(messageText, entities);
+
   const [configType, groupId] = waitingFor.split(':') as [ConfigType, string];
 
   switch (configType) {
     case 'welcome_message':
-      await WelcomeMessageModel.createOrUpdate(groupId, messageText, userTelegramId);
+      await WelcomeMessageModel.createOrUpdate(groupId, formattedMessage, userTelegramId);
       await ctx.reply(`✅ Welcome message updated for group ${groupId}!`);
       break;
     
     case 'referral':
-      await GroupConfigModel.updateField(groupId, 'referral_message', messageText, userTelegramId);
+      await GroupConfigModel.updateField(groupId, 'referral_message', formattedMessage, userTelegramId);
       await ctx.reply(`✅ Referral message updated for group ${groupId}!`);
       break;
     
     case 'live_trade':
-      await GroupConfigModel.updateField(groupId, 'live_trade_channel_message', messageText, userTelegramId);
+      await GroupConfigModel.updateField(groupId, 'live_trade_channel_message', formattedMessage, userTelegramId);
       await ctx.reply(`✅ Live trade message updated for group ${groupId}!`);
       break;
     
     case 'admin_contacts':
-      await GroupConfigModel.updateField(groupId, 'admin_contacts_message', messageText, userTelegramId);
+      await GroupConfigModel.updateField(groupId, 'admin_contacts_message', formattedMessage, userTelegramId);
       await ctx.reply(`✅ Admin contacts message updated for group ${groupId}!`);
       break;
     
     case 'copy_trade':
-      await GroupConfigModel.updateField(groupId, 'copy_trade_message', messageText, userTelegramId);
+      await GroupConfigModel.updateField(groupId, 'copy_trade_message', formattedMessage, userTelegramId);
       await ctx.reply(`✅ Copy trade message updated for group ${groupId}!`);
       break;
   }

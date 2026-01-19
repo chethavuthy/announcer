@@ -79,5 +79,5 @@ export async function handleButtonClick(ctx: Context): Promise<void> {
 
   // Answer callback query and send message
   await ctx.answerCbQuery();
-  await ctx.reply(parsedMessage, { parse_mode: 'Markdown' });
+  await ctx.reply(parsedMessage, { parse_mode: 'HTML' });
 }
