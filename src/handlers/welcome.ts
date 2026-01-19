@@ -17,15 +17,15 @@ export async function handleNewMember(ctx: Context): Promise<void> {
   const groupId = chat.id.toString();
   
   // Track group
-  ensureGroupExists(groupId, getChatTitle(chat), chat.type);
+  await ensureGroupExists(groupId, getChatTitle(chat), chat.type);
   
   // Check if bot is active for this group
-  if (!GroupModel.isActive(groupId)) {
+  if (!await GroupModel.isActive(groupId)) {
     return;
   }
 
   // Get welcome message from database or use default
-  const welcomeData = WelcomeMessageModel.getByGroupId(groupId);
+  const welcomeData = await WelcomeMessageModel.getByGroupId(groupId);
   const defaultMessage = process.env.WELCOME_MESSAGE || 
     'Welcome {{name}}! 🎉\n\nJoin our community and start trading!\n\nUse the buttons below to get started.';
   
@@ -41,7 +41,7 @@ export async function handleNewMember(ctx: Context): Promise<void> {
     const userId = member.id.toString();
     
     // Track user
-    ensureUserExists(
+    await ensureUserExists(
       userId,
       username || null,
       name,
@@ -59,12 +59,12 @@ export async function handleNewMember(ctx: Context): Promise<void> {
       });
       
       // Log successful welcome message
-      WelcomeLogModel.create(groupId, userId, true);
+      await WelcomeLogModel.create(groupId, userId, true);
     } catch (error) {
       console.error('Error sending welcome message:', error);
       
       // Log failed welcome message
-      WelcomeLogModel.create(groupId, userId, false, error instanceof Error ? error.message : 'Unknown error');
+      await WelcomeLogModel.create(groupId, userId, false, error instanceof Error ? error.message : 'Unknown error');
     }
   }
 }

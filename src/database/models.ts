@@ -96,13 +96,13 @@ export interface BroadcastLog {
 }
 
 export const UserModel = {
-  getByTelegramId: (telegramId: string): User | undefined => {
+  getByTelegramId: async (telegramId: string): Promise<User | undefined> => {
     const stmt = db.prepare('SELECT * FROM users WHERE telegram_id = ?');
-    return stmt.get(telegramId) as User | undefined;
+    return await stmt.get(telegramId) as User | undefined;
   },
 
-  createOrUpdate: (telegramId: string, username: string | null, firstName: string | null, lastName: string | null, isBot: boolean = false, languageCode: string | null = null): void => {
-    const existing = UserModel.getByTelegramId(telegramId);
+  createOrUpdate: async (telegramId: string, username: string | null, firstName: string | null, lastName: string | null, isBot: boolean = false, languageCode: string | null = null): Promise<void> => {
+    const existing = await UserModel.getByTelegramId(telegramId);
     if (existing) {
       const stmt = db.prepare(`
         UPDATE users 
@@ -110,43 +110,43 @@ export const UserModel = {
             last_interaction_at = CURRENT_TIMESTAMP, interaction_count = interaction_count + 1
         WHERE telegram_id = ?
       `);
-      stmt.run(username, firstName, lastName, languageCode, telegramId);
+      await stmt.run(username, firstName, lastName, languageCode, telegramId);
     } else {
       const stmt = db.prepare(`
         INSERT INTO users (telegram_id, username, first_name, last_name, is_bot, language_code)
         VALUES (?, ?, ?, ?, ?, ?)
       `);
-      stmt.run(telegramId, username, firstName, lastName, isBot ? 1 : 0, languageCode);
+      await stmt.run(telegramId, username, firstName, lastName, isBot ? 1 : 0, languageCode);
     }
   },
 
-  setPreferredGroup: (telegramId: string, groupId: string | null): void => {
+  setPreferredGroup: async (telegramId: string, groupId: string | null): Promise<void> => {
     const stmt = db.prepare(`
       UPDATE users 
       SET preferred_group_id = ?
       WHERE telegram_id = ?
     `);
-    stmt.run(groupId, telegramId);
+    await stmt.run(groupId, telegramId);
   },
 
-  getPreferredGroup: (telegramId: string): string | null => {
-    const user = UserModel.getByTelegramId(telegramId);
+  getPreferredGroup: async (telegramId: string): Promise<string | null> => {
+    const user = await UserModel.getByTelegramId(telegramId);
     return user?.preferred_group_id || null;
   },
 
-  getAll: (): User[] => {
+  getAll: async (): Promise<User[]> => {
     const stmt = db.prepare('SELECT * FROM users ORDER BY last_interaction_at DESC');
-    return stmt.all() as User[];
+    return await stmt.all() as User[];
   },
 };
 
 export const GroupModel = {
-  getByTelegramId: (telegramId: string): Group | undefined => {
+  getByTelegramId: async (telegramId: string): Promise<Group | undefined> => {
     const stmt = db.prepare('SELECT * FROM groups WHERE telegram_id = ?');
-    return stmt.get(telegramId) as Group | undefined;
+    return await stmt.get(telegramId) as Group | undefined;
   },
 
-  createOrUpdate: (telegramId: string, title: string | null, type: string | null): void => {
+  createOrUpdate: async (telegramId: string, title: string | null, type: string | null): Promise<void> => {
     const stmt = db.prepare(`
       INSERT INTO groups (telegram_id, title, type, last_activity_at)
       VALUES (?, ?, ?, CURRENT_TIMESTAMP)
@@ -155,87 +155,87 @@ export const GroupModel = {
         type = excluded.type,
         last_activity_at = CURRENT_TIMESTAMP
     `);
-    stmt.run(telegramId, title, type);
+    await stmt.run(telegramId, title, type);
   },
 
-  setActive: (telegramId: string, isActive: boolean): void => {
+  setActive: async (telegramId: string, isActive: boolean): Promise<void> => {
     const stmt = db.prepare(`
       UPDATE groups 
       SET is_active = ?, last_activity_at = CURRENT_TIMESTAMP
       WHERE telegram_id = ?
     `);
-    stmt.run(isActive ? 1 : 0, telegramId);
+    await stmt.run(isActive ? 1 : 0, telegramId);
   },
 
-  isActive: (telegramId: string): boolean => {
-    const group = GroupModel.getByTelegramId(telegramId);
+  isActive: async (telegramId: string): Promise<boolean> => {
+    const group = await GroupModel.getByTelegramId(telegramId);
     return group ? Boolean(group.is_active) : true;
   },
 
-  getAll: (): Group[] => {
+  getAll: async (): Promise<Group[]> => {
     const stmt = db.prepare('SELECT * FROM groups WHERE is_active = 1 ORDER BY last_activity_at DESC');
-    return stmt.all() as Group[];
+    return await stmt.all() as Group[];
   },
 };
 
 export const WelcomeMessageModel = {
-  getByGroupId: (groupId: string): WelcomeMessage | undefined => {
+  getByGroupId: async (groupId: string): Promise<WelcomeMessage | undefined> => {
     const stmt = db.prepare('SELECT * FROM welcome_messages WHERE group_id = ?');
-    return stmt.get(groupId) as WelcomeMessage | undefined;
+    return await stmt.get(groupId) as WelcomeMessage | undefined;
   },
 
-  createOrUpdate: (groupId: string, messageText: string, updatedBy: string | null = null): void => {
+  createOrUpdate: async (groupId: string, messageText: string, updatedBy: string | null = null): Promise<void> => {
     // Ensure group exists in groups table (foreign key requirement)
-    const group = GroupModel.getByTelegramId(groupId);
+    const group = await GroupModel.getByTelegramId(groupId);
     if (!group) {
       // Create group entry if it doesn't exist
-      GroupModel.createOrUpdate(groupId, null, 'group');
+      await GroupModel.createOrUpdate(groupId, null, 'group');
     }
 
-    const existing = WelcomeMessageModel.getByGroupId(groupId);
+    const existing = await WelcomeMessageModel.getByGroupId(groupId);
     if (existing) {
       const stmt = db.prepare(`
         UPDATE welcome_messages 
         SET message_text = ?, updated_by_user_id = ?, updated_at = CURRENT_TIMESTAMP
         WHERE group_id = ?
       `);
-      stmt.run(messageText, updatedBy, groupId);
+      await stmt.run(messageText, updatedBy, groupId);
     } else {
       const stmt = db.prepare(`
         INSERT INTO welcome_messages (group_id, message_text, created_by_user_id, updated_by_user_id)
         VALUES (?, ?, ?, ?)
       `);
-      stmt.run(groupId, messageText, updatedBy, updatedBy);
+      await stmt.run(groupId, messageText, updatedBy, updatedBy);
     }
   },
 
-  delete: (groupId: string): void => {
+  delete: async (groupId: string): Promise<void> => {
     const stmt = db.prepare('DELETE FROM welcome_messages WHERE group_id = ?');
-    stmt.run(groupId);
+    await stmt.run(groupId);
   },
 };
 
 
 export const GroupConfigModel = {
-  getByGroupId: (groupId: string): GroupConfig | undefined => {
+  getByGroupId: async (groupId: string): Promise<GroupConfig | undefined> => {
     const stmt = db.prepare('SELECT * FROM group_configs WHERE group_id = ?');
-    return stmt.get(groupId) as GroupConfig | undefined;
+    return await stmt.get(groupId) as GroupConfig | undefined;
   },
 
-  updateField: (
+  updateField: async (
     groupId: string, 
     fieldName: keyof Omit<GroupConfig, 'id' | 'group_id' | 'created_by_user_id' | 'updated_by_user_id' | 'created_at' | 'updated_at'>,
     value: string,
     updatedBy: string
-  ): void => {
+  ): Promise<void> => {
     // Ensure group exists in groups table (foreign key requirement)
-    const group = GroupModel.getByTelegramId(groupId);
+    const group = await GroupModel.getByTelegramId(groupId);
     if (!group) {
       // Create group entry if it doesn't exist
-      GroupModel.createOrUpdate(groupId, null, 'group');
+      await GroupModel.createOrUpdate(groupId, null, 'group');
     }
 
-    const existing = GroupConfigModel.getByGroupId(groupId);
+    const existing = await GroupConfigModel.getByGroupId(groupId);
     const oldValue = existing ? (existing[fieldName] as string | null) : null;
     
     if (existing) {
@@ -244,35 +244,35 @@ export const GroupConfigModel = {
         SET ${fieldName} = ?, updated_by_user_id = ?, updated_at = CURRENT_TIMESTAMP
         WHERE group_id = ?
       `);
-      stmt.run(value, updatedBy, groupId);
+      await stmt.run(value, updatedBy, groupId);
     } else {
       const stmt = db.prepare(`
         INSERT INTO group_configs (group_id, ${fieldName}, created_by_user_id, updated_by_user_id)
         VALUES (?, ?, ?, ?)
       `);
-      stmt.run(groupId, value, updatedBy, updatedBy);
+      await stmt.run(groupId, value, updatedBy, updatedBy);
     }
     
     // Log the change
-    ConfigChangeLogModel.create(groupId, 'group_config', fieldName, oldValue, value, updatedBy);
+    await ConfigChangeLogModel.create(groupId, 'group_config', fieldName, oldValue, value, updatedBy);
   },
 };
 
 export const WelcomeLogModel = {
-  create: (groupId: string, userId: string, messageSent: boolean = true, errorMessage: string | null = null): void => {
+  create: async (groupId: string, userId: string, messageSent: boolean = true, errorMessage: string | null = null): Promise<void> => {
     const stmt = db.prepare(`
       INSERT INTO welcome_logs (group_id, user_id, message_sent, error_message)
       VALUES (?, ?, ?, ?)
     `);
-    stmt.run(groupId, userId, messageSent ? 1 : 0, errorMessage);
+    await stmt.run(groupId, userId, messageSent ? 1 : 0, errorMessage);
   },
 
-  getByGroupId: (groupId: string, limit: number = 100): WelcomeLog[] => {
+  getByGroupId: async (groupId: string, limit: number = 100): Promise<WelcomeLog[]> => {
     const stmt = db.prepare('SELECT * FROM welcome_logs WHERE group_id = ? ORDER BY sent_at DESC LIMIT ?');
-    return stmt.all(groupId, limit) as WelcomeLog[];
+    return await stmt.all(groupId, limit) as WelcomeLog[];
   },
 
-  getStats: (groupId: string): { total: number; success: number; failed: number } => {
+  getStats: async (groupId: string): Promise<{ total: number; success: number; failed: number }> => {
     const stmt = db.prepare(`
       SELECT 
         COUNT(*) as total,
@@ -281,7 +281,7 @@ export const WelcomeLogModel = {
       FROM welcome_logs 
       WHERE group_id = ?
     `);
-    const result = stmt.get(groupId) as any;
+    const result = await stmt.get(groupId) as any;
     return {
       total: result.total || 0,
       success: result.success || 0,
@@ -291,15 +291,15 @@ export const WelcomeLogModel = {
 };
 
 export const ButtonClickModel = {
-  create: (userId: string, buttonType: string, groupId: string | null = null): void => {
+  create: async (userId: string, buttonType: string, groupId: string | null = null): Promise<void> => {
     const stmt = db.prepare(`
       INSERT INTO button_clicks (user_id, group_id, button_type)
       VALUES (?, ?, ?)
     `);
-    stmt.run(userId, groupId, buttonType);
+    await stmt.run(userId, groupId, buttonType);
   },
 
-  getStats: (groupId: string | null = null, days: number = 30): { button_type: string; count: number }[] => {
+  getStats: async (groupId: string | null = null, days: number = 30): Promise<{ button_type: string; count: number }[]> => {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
     
@@ -312,7 +312,7 @@ export const ButtonClickModel = {
         GROUP BY button_type
         ORDER BY count DESC
       `);
-      return stmt.all(groupId, cutoffDate.toISOString()) as { button_type: string; count: number }[];
+      return await stmt.all(groupId, cutoffDate.toISOString()) as { button_type: string; count: number }[];
     } else {
       stmt = db.prepare(`
         SELECT button_type, COUNT(*) as count
@@ -321,122 +321,122 @@ export const ButtonClickModel = {
         GROUP BY button_type
         ORDER BY count DESC
       `);
-      return stmt.all(cutoffDate.toISOString()) as { button_type: string; count: number }[];
+      return await stmt.all(cutoffDate.toISOString()) as { button_type: string; count: number }[];
     }
   },
 };
 
 export const ConfigChangeLogModel = {
-  create: (
+  create: async (
     groupId: string,
     configType: string,
     fieldName: string,
     oldValue: string | null,
     newValue: string | null,
     changedBy: string
-  ): void => {
+  ): Promise<void> => {
     const stmt = db.prepare(`
       INSERT INTO config_change_logs (group_id, config_type, field_name, old_value, new_value, changed_by_user_id)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(groupId, configType, fieldName, oldValue, newValue, changedBy);
+    await stmt.run(groupId, configType, fieldName, oldValue, newValue, changedBy);
   },
 
-  getByGroupId: (groupId: string, limit: number = 100): ConfigChangeLog[] => {
+  getByGroupId: async (groupId: string, limit: number = 100): Promise<ConfigChangeLog[]> => {
     const stmt = db.prepare(`
       SELECT * FROM config_change_logs 
       WHERE group_id = ? 
       ORDER BY changed_at DESC 
       LIMIT ?
     `);
-    return stmt.all(groupId, limit) as ConfigChangeLog[];
+    return await stmt.all(groupId, limit) as ConfigChangeLog[];
   },
 
-  getByConfigType: (groupId: string, configType: string, limit: number = 50): ConfigChangeLog[] => {
+  getByConfigType: async (groupId: string, configType: string, limit: number = 50): Promise<ConfigChangeLog[]> => {
     const stmt = db.prepare(`
       SELECT * FROM config_change_logs 
       WHERE group_id = ? AND config_type = ?
       ORDER BY changed_at DESC 
       LIMIT ?
     `);
-    return stmt.all(groupId, configType, limit) as ConfigChangeLog[];
+    return await stmt.all(groupId, configType, limit) as ConfigChangeLog[];
   },
 
-  getAll: (limit: number = 500): ConfigChangeLog[] => {
+  getAll: async (limit: number = 500): Promise<ConfigChangeLog[]> => {
     const stmt = db.prepare(`
       SELECT * FROM config_change_logs 
       ORDER BY changed_at DESC 
       LIMIT ?
     `);
-    return stmt.all(limit) as ConfigChangeLog[];
+    return await stmt.all(limit) as ConfigChangeLog[];
   },
 };
 
 export const UserPreferenceLogModel = {
-  create: (userId: string, groupId: string | null, action: 'set' | 'reset'): void => {
+  create: async (userId: string, groupId: string | null, action: 'set' | 'reset'): Promise<void> => {
     const stmt = db.prepare(`
       INSERT INTO user_preference_logs (user_id, group_id, action)
       VALUES (?, ?, ?)
     `);
-    stmt.run(userId, groupId, action);
+    await stmt.run(userId, groupId, action);
   },
 
-  getByUserId: (userId: string, limit: number = 100): UserPreferenceLog[] => {
+  getByUserId: async (userId: string, limit: number = 100): Promise<UserPreferenceLog[]> => {
     const stmt = db.prepare(`
       SELECT * FROM user_preference_logs 
       WHERE user_id = ? 
       ORDER BY changed_at DESC 
       LIMIT ?
     `);
-    return stmt.all(userId, limit) as UserPreferenceLog[];
+    return await stmt.all(userId, limit) as UserPreferenceLog[];
   },
 
-  getAll: (limit: number = 500): UserPreferenceLog[] => {
+  getAll: async (limit: number = 500): Promise<UserPreferenceLog[]> => {
     const stmt = db.prepare(`
       SELECT * FROM user_preference_logs 
       ORDER BY changed_at DESC 
       LIMIT ?
     `);
-    return stmt.all(limit) as UserPreferenceLog[];
+    return await stmt.all(limit) as UserPreferenceLog[];
   },
 };
 
 export const BroadcastLogModel = {
-  create: (
+  create: async (
     groupId: string,
     messageText: string,
     sentBy: string,
     success: boolean = true,
     errorMessage: string | null = null
-  ): void => {
+  ): Promise<void> => {
     const stmt = db.prepare(`
       INSERT INTO broadcast_logs (group_id, message_text, sent_by_user_id, success, error_message)
       VALUES (?, ?, ?, ?, ?)
     `);
-    stmt.run(groupId, messageText, sentBy, success ? 1 : 0, errorMessage);
+    await stmt.run(groupId, messageText, sentBy, success ? 1 : 0, errorMessage);
   },
 
-  getByGroupId: (groupId: string, limit: number = 100): BroadcastLog[] => {
+  getByGroupId: async (groupId: string, limit: number = 100): Promise<BroadcastLog[]> => {
     const stmt = db.prepare(`
       SELECT * FROM broadcast_logs 
       WHERE group_id = ? 
       ORDER BY sent_at DESC 
       LIMIT ?
     `);
-    return stmt.all(groupId, limit) as BroadcastLog[];
+    return await stmt.all(groupId, limit) as BroadcastLog[];
   },
 
-  getBySentBy: (userId: string, limit: number = 100): BroadcastLog[] => {
+  getBySentBy: async (userId: string, limit: number = 100): Promise<BroadcastLog[]> => {
     const stmt = db.prepare(`
       SELECT * FROM broadcast_logs 
       WHERE sent_by_user_id = ? 
       ORDER BY sent_at DESC 
       LIMIT ?
     `);
-    return stmt.all(userId, limit) as BroadcastLog[];
+    return await stmt.all(userId, limit) as BroadcastLog[];
   },
 
-  getStats: (groupId: string | null = null): { total: number; success: number; failed: number } => {
+  getStats: async (groupId: string | null = null): Promise<{ total: number; success: number; failed: number }> => {
     let stmt;
     let result;
     
@@ -449,7 +449,7 @@ export const BroadcastLogModel = {
         FROM broadcast_logs 
         WHERE group_id = ?
       `);
-      result = stmt.get(groupId) as any;
+      result = await stmt.get(groupId) as any;
     } else {
       stmt = db.prepare(`
         SELECT 
@@ -458,7 +458,7 @@ export const BroadcastLogModel = {
           SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed
         FROM broadcast_logs
       `);
-      result = stmt.get() as any;
+      result = await stmt.get() as any;
     }
     
     return {
@@ -468,12 +468,12 @@ export const BroadcastLogModel = {
     };
   },
 
-  getAll: (limit: number = 500): BroadcastLog[] => {
+  getAll: async (limit: number = 500): Promise<BroadcastLog[]> => {
     const stmt = db.prepare(`
       SELECT * FROM broadcast_logs 
       ORDER BY sent_at DESC 
       LIMIT ?
     `);
-    return stmt.all(limit) as BroadcastLog[];
+    return await stmt.all(limit) as BroadcastLog[];
   },
 };

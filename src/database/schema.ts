@@ -1,27 +1,16 @@
-import Database, { type Database as DatabaseType } from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
+import db from './connection';
 
-// Use /tmp on Vercel, local directory otherwise
-const isVercel = process.env.VERCEL === '1';
-const dbPath = process.env.DATABASE_PATH || 
-  (isVercel ? '/tmp/bot.db' : path.join(process.cwd(), 'bot.db'));
-
-// Ensure directory exists
-if (!isVercel) {
-  const dir = path.dirname(dbPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+// Initialize database schema
+(async () => {
+  // Enable foreign keys (for local SQLite only)
+  try {
+    await db.pragma('foreign_keys = ON');
+  } catch (e) {
+    // Turso doesn't support pragma, but foreign keys are enabled by default
   }
-}
 
-const db: DatabaseType = new Database(dbPath);
-
-// Enable foreign keys
-db.pragma('foreign_keys = ON');
-
-// Create tables
-db.exec(`
+  // Create tables
+  await db.exec(`
   -- Users table: Track all users who interact with the bot
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -143,8 +132,8 @@ db.exec(`
   );
 `);
 
-// Create indexes (only for non-unique columns that are frequently queried)
-db.exec(`
+  // Create indexes (only for non-unique columns that are frequently queried)
+  await db.exec(`
   -- Users indexes
   CREATE INDEX IF NOT EXISTS idx_users_last_interaction ON users(last_interaction_at DESC);
   CREATE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE username IS NOT NULL;
@@ -176,6 +165,12 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_broadcast_logs_group ON broadcast_logs(group_id, sent_at DESC);
   CREATE INDEX IF NOT EXISTS idx_broadcast_logs_sent_by ON broadcast_logs(sent_by_user_id, sent_at DESC);
   CREATE INDEX IF NOT EXISTS idx_broadcast_logs_success ON broadcast_logs(success, sent_at DESC);
-`);
+  `);
+
+  console.log('✅ Database schema initialized');
+})().catch(error => {
+  console.error('❌ Failed to initialize database:', error);
+  process.exit(1);
+});
 
 export default db;

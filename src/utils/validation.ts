@@ -8,29 +8,29 @@ import { Context } from 'telegraf';
 /**
  * Ensure a group exists in the database, create if not
  */
-export function ensureGroupExists(
+export async function ensureGroupExists(
   groupId: string,
   title: string | null = null,
   type: 'group' | 'supergroup' | 'channel' = 'group'
-): void {
-  const existing = GroupModel.getByTelegramId(groupId);
+): Promise<void> {
+  const existing = await GroupModel.getByTelegramId(groupId);
   if (!existing) {
-    GroupModel.createOrUpdate(groupId, title, type);
+    await GroupModel.createOrUpdate(groupId, title, type);
   }
 }
 
 /**
  * Ensure a user exists in the database, create or update
  */
-export function ensureUserExists(
+export async function ensureUserExists(
   telegramId: string,
   username: string | null,
   firstName: string | null,
   lastName: string | null,
   isBot: boolean = false,
   languageCode: string | null = null
-): void {
-  UserModel.createOrUpdate(telegramId, username, firstName, lastName, isBot, languageCode);
+): Promise<void> {
+  await UserModel.createOrUpdate(telegramId, username, firstName, lastName, isBot, languageCode);
 }
 
 /**

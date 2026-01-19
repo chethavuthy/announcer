@@ -20,7 +20,7 @@ export async function handlePrivateMessage(ctx: Context): Promise<void> {
   const username = from.username;
 
   // Track user interaction
-  ensureUserExists(
+  await ensureUserExists(
     userId,
     username || null,
     name,
@@ -30,8 +30,8 @@ export async function handlePrivateMessage(ctx: Context): Promise<void> {
   );
 
   // Check if user has a preferred group
-  const preferredGroupId = UserModel.getPreferredGroup(userId);
-  const groupConfig = preferredGroupId ? GroupConfigModel.getByGroupId(preferredGroupId) : null;
+  const preferredGroupId = await UserModel.getPreferredGroup(userId);
+  const groupConfig = preferredGroupId ? await GroupConfigModel.getByGroupId(preferredGroupId) : null;
 
   // Get message templates (use group config if available, otherwise defaults)
   const defaults = getDefaultMessages();
@@ -43,19 +43,19 @@ export async function handlePrivateMessage(ctx: Context): Promise<void> {
 
   // Handle button clicks
   if (text.includes('referral')) {
-    ButtonClickModel.create(userId, 'referral_link', preferredGroupId);
+    await ButtonClickModel.create(userId, 'referral_link', preferredGroupId);
     const parsedMessage = parseWelcomeMessage(referralMsg, name, username);
     await ctx.reply(parsedMessage, { reply_markup: getKeyboardButtons(), parse_mode: 'Markdown' });
   } else if (text.includes('live trade') || text.includes('trade channel')) {
-    ButtonClickModel.create(userId, 'live_trade_channel', preferredGroupId);
+    await ButtonClickModel.create(userId, 'live_trade_channel', preferredGroupId);
     const parsedMessage = parseWelcomeMessage(liveTradeMsg, name, username);
     await ctx.reply(parsedMessage, { reply_markup: getKeyboardButtons(), parse_mode: 'Markdown' });
   } else if (text.includes('contact') || text.includes('admin')) {
-    ButtonClickModel.create(userId, 'contact_admin', preferredGroupId);
+    await ButtonClickModel.create(userId, 'contact_admin', preferredGroupId);
     const parsedMessage = parseWelcomeMessage(adminMsg, name, username);
     await ctx.reply(parsedMessage, { reply_markup: getKeyboardButtons(), parse_mode: 'Markdown' });
   } else if (text.includes('copy trade') || text.includes('copy')) {
-    ButtonClickModel.create(userId, 'copy_trade', preferredGroupId);
+    await ButtonClickModel.create(userId, 'copy_trade', preferredGroupId);
     const parsedMessage = parseWelcomeMessage(copyTradeMsg, name, username);
     await ctx.reply(parsedMessage, { reply_markup: getKeyboardButtons(), parse_mode: 'Markdown' });
   } else {

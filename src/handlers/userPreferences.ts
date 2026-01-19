@@ -28,10 +28,10 @@ export async function handleSetGroupCommand(ctx: Context): Promise<void> {
   // If no group ID provided, show current setting
   if (args.length === 0 || !args[0]) {
     const userId = from.id.toString();
-    const preferredGroup = UserModel.getPreferredGroup(userId);
+    const preferredGroup = await UserModel.getPreferredGroup(userId);
     
     if (preferredGroup) {
-      const group = GroupModel.getByTelegramId(preferredGroup);
+      const group = await GroupModel.getByTelegramId(preferredGroup);
       const groupTitle = group?.title || 'Unknown Group';
       await ctx.reply(
         `📋 *Current Setting*\n\n` +
@@ -58,7 +58,7 @@ export async function handleSetGroupCommand(ctx: Context): Promise<void> {
   const userId = from.id.toString();
 
   // Track user
-  ensureUserExists(
+  await ensureUserExists(
     userId,
     from.username || null,
     from.first_name || null,
@@ -69,10 +69,10 @@ export async function handleSetGroupCommand(ctx: Context): Promise<void> {
 
   // Handle reset
   if (groupIdRaw.toLowerCase() === 'reset') {
-    UserModel.setPreferredGroup(userId, null);
+    await UserModel.setPreferredGroup(userId, null);
     
     // Log the reset action
-    UserPreferenceLogModel.create(userId, null, 'reset');
+    await UserPreferenceLogModel.create(userId, null, 'reset');
     
     await ctx.reply('✅ Private chat link reset! You will now see default messages.');
     return;
@@ -86,14 +86,14 @@ export async function handleSetGroupCommand(ctx: Context): Promise<void> {
   }
 
   // Ensure group exists
-  ensureGroupExists(groupId);
-  const group = GroupModel.getByTelegramId(groupId);
+  await ensureGroupExists(groupId);
+  const group = await GroupModel.getByTelegramId(groupId);
 
   // Set preferred group
-  UserModel.setPreferredGroup(userId, groupId);
+  await UserModel.setPreferredGroup(userId, groupId);
   
   // Log the preference change
-  UserPreferenceLogModel.create(userId, groupId, 'set');
+  await UserPreferenceLogModel.create(userId, groupId, 'set');
   
   const groupTitle = group?.title || 'the group';
   await ctx.reply(

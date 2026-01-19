@@ -18,7 +18,7 @@ export async function handleButtonClick(ctx: Context): Promise<void> {
   const groupId = chat.type !== 'private' ? chat.id.toString() : null;
 
   // Track user
-  ensureUserExists(
+  await ensureUserExists(
     userId,
     from.username || null,
     from.first_name || null,
@@ -29,7 +29,7 @@ export async function handleButtonClick(ctx: Context): Promise<void> {
 
   // Ensure group exists if button clicked in group
   if (groupId) {
-    ensureGroupExists(
+    await ensureGroupExists(
       groupId,
       getChatTitle(chat),
       chat.type as 'group' | 'supergroup'
@@ -40,7 +40,7 @@ export async function handleButtonClick(ctx: Context): Promise<void> {
   let buttonType = '';
 
   // Get config for the group
-  const config = groupId ? GroupConfigModel.getByGroupId(groupId) : null;
+  const config = groupId ? await GroupConfigModel.getByGroupId(groupId) : null;
   const defaults = getDefaultMessages();
 
   switch (data) {
@@ -70,7 +70,7 @@ export async function handleButtonClick(ctx: Context): Promise<void> {
   }
 
   // Log button click
-  ButtonClickModel.create(userId, buttonType, groupId);
+  await ButtonClickModel.create(userId, buttonType, groupId);
 
   // Parse message with user variables
   const name = from.first_name || 'there';

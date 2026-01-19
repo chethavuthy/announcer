@@ -97,14 +97,14 @@ async function handleConfigSetup(ctx: Context, configType: ConfigType): Promise<
   let prompt = '';
 
   if (configType === 'welcome_message') {
-    const welcomeData = WelcomeMessageModel.getByGroupId(groupId);
+    const welcomeData = await WelcomeMessageModel.getByGroupId(groupId);
     currentValue = welcomeData?.message_text || process.env.WELCOME_MESSAGE || 'Not set';
     prompt = `📝 *Current Welcome Message:*\n\n${currentValue}\n\n` +
       `Please reply with your new welcome message.\n\n` +
       `*Variables:*\n• {{name}} - User's first name\n• {{username}} - User's @username\n\n` +
       `Type /cancel to cancel.`;
   } else {
-    const config = GroupConfigModel.getByGroupId(groupId);
+    const config = await GroupConfigModel.getByGroupId(groupId);
     
     const fieldMap = {
       referral: { field: 'referral_message' as const, emoji: '🔗', name: 'Referral' },
@@ -161,7 +161,7 @@ export async function handleConfigUpdate(ctx: Context): Promise<boolean> {
   const userTelegramId = from.id.toString();
 
   // Track user interaction
-  ensureUserExists(
+  await ensureUserExists(
     userTelegramId,
     from.username || null,
     from.first_name || null,
@@ -174,27 +174,27 @@ export async function handleConfigUpdate(ctx: Context): Promise<boolean> {
 
   switch (configType) {
     case 'welcome_message':
-      WelcomeMessageModel.createOrUpdate(groupId, messageText, userTelegramId);
+      await WelcomeMessageModel.createOrUpdate(groupId, messageText, userTelegramId);
       await ctx.reply(`✅ Welcome message updated for group ${groupId}!`);
       break;
     
     case 'referral':
-      GroupConfigModel.updateField(groupId, 'referral_message', messageText, userTelegramId);
+      await GroupConfigModel.updateField(groupId, 'referral_message', messageText, userTelegramId);
       await ctx.reply(`✅ Referral message updated for group ${groupId}!`);
       break;
     
     case 'live_trade':
-      GroupConfigModel.updateField(groupId, 'live_trade_channel_message', messageText, userTelegramId);
+      await GroupConfigModel.updateField(groupId, 'live_trade_channel_message', messageText, userTelegramId);
       await ctx.reply(`✅ Live trade message updated for group ${groupId}!`);
       break;
     
     case 'admin_contacts':
-      GroupConfigModel.updateField(groupId, 'admin_contacts_message', messageText, userTelegramId);
+      await GroupConfigModel.updateField(groupId, 'admin_contacts_message', messageText, userTelegramId);
       await ctx.reply(`✅ Admin contacts message updated for group ${groupId}!`);
       break;
     
     case 'copy_trade':
-      GroupConfigModel.updateField(groupId, 'copy_trade_message', messageText, userTelegramId);
+      await GroupConfigModel.updateField(groupId, 'copy_trade_message', messageText, userTelegramId);
       await ctx.reply(`✅ Copy trade message updated for group ${groupId}!`);
       break;
   }

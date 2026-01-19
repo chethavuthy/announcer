@@ -38,7 +38,7 @@ export async function handleBroadcastCommand(ctx: Context): Promise<void> {
   }
 
   // Ensure group exists
-  ensureGroupExists(groupId);
+  await ensureGroupExists(groupId);
 
   await ctx.reply(
     `📢 *Broadcast to Group ${groupId}*\n\n` +
@@ -87,7 +87,7 @@ export async function handleBroadcastSend(ctx: Context): Promise<boolean> {
   const userTelegramId = from.id.toString();
 
   // Track user interaction
-  ensureUserExists(
+  await ensureUserExists(
     userTelegramId,
     from.username || null,
     from.first_name || null,
@@ -106,7 +106,7 @@ export async function handleBroadcastSend(ctx: Context): Promise<boolean> {
     await ctx.telegram.sendMessage(groupId, parsedMessage, { parse_mode: 'Markdown' });
     
     // Log successful broadcast
-    BroadcastLogModel.create(groupId, messageText, userTelegramId, true);
+    await BroadcastLogModel.create(groupId, messageText, userTelegramId, true);
     
     await ctx.reply(`✅ Broadcast sent successfully to group ${groupId}!`);
   } catch (error) {
@@ -114,7 +114,7 @@ export async function handleBroadcastSend(ctx: Context): Promise<boolean> {
     
     // Log failed broadcast
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-    BroadcastLogModel.create(groupId, messageText, userTelegramId, false, errorMsg);
+    await BroadcastLogModel.create(groupId, messageText, userTelegramId, false, errorMsg);
     
     await ctx.reply(
       `❌ Failed to send broadcast to group ${groupId}.\n\n` +
