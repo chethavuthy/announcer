@@ -1,5 +1,5 @@
 import { Context } from 'telegraf';
-import { WelcomeMessageModel, GroupModel, WelcomeLogModel } from '../database/models';
+import { WelcomeMessageModel, GroupModel, WelcomeLogModel, UserModel } from '../database/models';
 import { parseWelcomeMessage } from '../utils/messageParser';
 import { getInlineButtons } from '../utils/buttons';
 import { ensureUserExists, ensureGroupExists, getChatTitle } from '../utils/validation';
@@ -49,6 +49,11 @@ export async function handleNewMember(ctx: Context): Promise<void> {
       member.is_bot,
       member.language_code || null
     );
+
+    // Set preferred group for non-bot users (so they see this group's custom messages in private chat)
+    if (!member.is_bot) {
+      await UserModel.setPreferredGroup(userId, groupId);
+    }
 
     const parsedMessage = parseWelcomeMessage(messageTemplate, name, username);
 

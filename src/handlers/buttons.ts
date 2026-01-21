@@ -1,5 +1,5 @@
 import { Context } from 'telegraf';
-import { GroupConfigModel, ButtonClickModel } from '../database/models';
+import { GroupConfigModel, ButtonClickModel, UserModel } from '../database/models';
 import { parseWelcomeMessage } from '../utils/messageParser';
 import { ensureUserExists, ensureGroupExists, getChatTitle } from '../utils/validation';
 import { getDefaultMessages } from '../utils/defaults';
@@ -15,7 +15,8 @@ export async function handleButtonClick(ctx: Context): Promise<void> {
   if (!from || !chat) return;
 
   const userId = from.id.toString();
-  const groupId = chat.type !== 'private' ? chat.id.toString() : null;
+  const isPrivateChat = chat.type === 'private';
+  const groupId = isPrivateChat ? null : chat.id.toString();
 
   // Track user
   await ensureUserExists(
@@ -40,7 +41,13 @@ export async function handleButtonClick(ctx: Context): Promise<void> {
   let buttonType = '';
 
   // Get config for the group
-  const config = groupId ? await GroupConfigModel.getByGroupId(groupId) : null;
+  // In private chat, use user's preferred group; otherwise use current group
+  let configGroupId = groupId;
+  if (isPrivateChat) {
+    configGroupId = await UserModel.getPreferredGroup(userId);
+  }
+  
+  const config = configGroupId ? await GroupConfigModel.getByGroupId(configGroupId) : null;
   const defaults = getDefaultMessages();
 
   switch (data) {
@@ -69,8 +76,8 @@ export async function handleButtonClick(ctx: Context): Promise<void> {
       return;
   }
 
-  // Log button click
-  await ButtonClickModel.create(userId, buttonType, groupId);
+  // Log button click (use configGroupId for logging in private chat)
+  await ButtonClickModel.create(userId, buttonType, groupId || configGroupId);
 
   // Parse message with user variables
   const name = from.first_name || 'there';
