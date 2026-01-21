@@ -130,6 +130,14 @@ import db from './connection';
     FOREIGN KEY (group_id) REFERENCES groups(telegram_id) ON DELETE CASCADE,
     FOREIGN KEY (sent_by_user_id) REFERENCES users(telegram_id) ON DELETE CASCADE
   );
+
+  -- Bot settings: Global bot configuration
+  CREATE TABLE IF NOT EXISTS bot_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    setting_key TEXT NOT NULL UNIQUE,
+    setting_value TEXT,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
   // Create indexes (only for non-unique columns that are frequently queried)

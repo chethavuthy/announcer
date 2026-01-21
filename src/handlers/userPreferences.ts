@@ -1,7 +1,8 @@
 import { Context } from 'telegraf';
-import { UserModel, GroupModel, UserPreferenceLogModel } from '../database/models';
+import { UserModel, GroupModel, UserPreferenceLogModel, BotSettingsModel } from '../database/models';
 import { isSuperAdmin } from '../utils/admin';
 import { isPrivateChat, ensureUserExists, extractGroupId, ensureGroupExists } from '../utils/validation';
+import db from '../database/connection';
 
 export async function handleSetGroupCommand(ctx: Context): Promise<void> {
   const chat = ctx.chat;
@@ -27,27 +28,27 @@ export async function handleSetGroupCommand(ctx: Context): Promise<void> {
   
   // If no group ID provided, show current setting
   if (args.length === 0 || !args[0]) {
-    const userId = from.id.toString();
-    const preferredGroup = await UserModel.getPreferredGroup(userId);
+    const defaultGroupId = await BotSettingsModel.getDefaultPreferredGroup();
     
-    if (preferredGroup) {
-      const group = await GroupModel.getByTelegramId(preferredGroup);
+    if (defaultGroupId) {
+      const group = await GroupModel.getByTelegramId(defaultGroupId);
       const groupTitle = group?.title || 'Unknown Group';
       await ctx.reply(
-        `📋 <b>Current Setting</b>\n\n` +
-        `Your private chat is linked to:\n` +
-        `Group ID: <code>${preferredGroup}</code>\n` +
+        `📋 <b>Current Global Default Setting</b>\n\n` +
+        `Default preferred group for all users:\n` +
+        `Group ID: <code>${defaultGroupId}</code>\n` +
         `Group Name: ${groupTitle}\n\n` +
+        `All users without a personal preference will use this group's messages.\n\n` +
         `To change: <code>/setgroup &lt;group_id&gt;</code>\n` +
         `To reset: <code>/setgroup reset</code>`,
         { parse_mode: 'HTML' }
       );
     } else {
       await ctx.reply(
-        `📋 <b>Current Setting</b>\n\n` +
-        `You haven't linked your private chat to any group yet.\n\n` +
+        `📋 <b>Current Global Default Setting</b>\n\n` +
+        `No default preferred group is set.\n\n` +
         `Usage: <code>/setgroup &lt;group_id&gt;</code>\n\n` +
-        `This will make your private chat buttons use the custom messages from that group.`,
+        `This will set the default preferred group for all users. Users will see custom messages from this group when they don't have a personal preference.`,
         { parse_mode: 'HTML' }
       );
     }
@@ -69,12 +70,9 @@ export async function handleSetGroupCommand(ctx: Context): Promise<void> {
 
   // Handle reset
   if (groupIdRaw.toLowerCase() === 'reset') {
-    await UserModel.setPreferredGroup(userId, null);
+    await BotSettingsModel.setDefaultPreferredGroup(null);
     
-    // Log the reset action
-    await UserPreferenceLogModel.create(userId, null, 'reset');
-    
-    await ctx.reply('✅ Private chat link reset! You will now see default messages.');
+    await ctx.reply('✅ Global default preferred group reset! All users will now see default messages unless they have a personal preference.');
     return;
   }
 
@@ -89,19 +87,25 @@ export async function handleSetGroupCommand(ctx: Context): Promise<void> {
   await ensureGroupExists(groupId);
   const group = await GroupModel.getByTelegramId(groupId);
 
-  // Set preferred group
-  await UserModel.setPreferredGroup(userId, groupId);
+  // Set global default preferred group
+  await BotSettingsModel.setDefaultPreferredGroup(groupId);
   
-  // Log the preference change
-  await UserPreferenceLogModel.create(userId, groupId, 'set');
+  // Also set preferred group for all existing users who don't have one
+  const stmt = db.prepare(`
+    UPDATE users 
+    SET preferred_group_id = ?
+    WHERE preferred_group_id IS NULL
+  `);
+  const result = await stmt.run(groupId);
   
   const groupTitle = group?.title || 'the group';
   await ctx.reply(
-    `✅ <b>Private Chat Linked!</b>\n\n` +
-    `Your private chat is now linked to:\n` +
+    `✅ <b>Global Default Preferred Group Set!</b>\n\n` +
+    `Default preferred group for all users:\n` +
     `Group ID: <code>${groupId}</code>\n` +
     `Group Name: ${groupTitle}\n\n` +
-    `You will see custom messages from this group when using keyboard buttons.`,
+    `Updated ${result.changes || 0} existing users without a preference.\n\n` +
+    `All users will now see custom messages from this group when using keyboard buttons.`,
     { parse_mode: 'HTML' }
   );
 }

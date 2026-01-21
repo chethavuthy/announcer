@@ -95,6 +95,13 @@ export interface BroadcastLog {
   sent_at: string;
 }
 
+export interface BotSetting {
+  id: number;
+  setting_key: string;
+  setting_value: string | null;
+  updated_at: string;
+}
+
 export const UserModel = {
   getByTelegramId: async (telegramId: string): Promise<User | undefined> => {
     const stmt = db.prepare('SELECT * FROM users WHERE telegram_id = ?');
@@ -131,7 +138,11 @@ export const UserModel = {
 
   getPreferredGroup: async (telegramId: string): Promise<string | null> => {
     const user = await UserModel.getByTelegramId(telegramId);
-    return user?.preferred_group_id || null;
+    // Return user's preferred group if set, otherwise return global default
+    if (user?.preferred_group_id) {
+      return user.preferred_group_id;
+    }
+    return await BotSettingsModel.getDefaultPreferredGroup();
   },
 
   getAll: async (): Promise<User[]> => {
@@ -475,5 +486,32 @@ export const BroadcastLogModel = {
       LIMIT ?
     `);
     return await stmt.all(limit) as BroadcastLog[];
+  },
+};
+
+export const BotSettingsModel = {
+  get: async (key: string): Promise<string | null> => {
+    const stmt = db.prepare('SELECT setting_value FROM bot_settings WHERE setting_key = ?');
+    const result = await stmt.get(key) as { setting_value: string | null } | undefined;
+    return result?.setting_value || null;
+  },
+
+  set: async (key: string, value: string | null): Promise<void> => {
+    const stmt = db.prepare(`
+      INSERT INTO bot_settings (setting_key, setting_value, updated_at)
+      VALUES (?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(setting_key) DO UPDATE SET
+        setting_value = excluded.setting_value,
+        updated_at = CURRENT_TIMESTAMP
+    `);
+    await stmt.run(key, value);
+  },
+
+  getDefaultPreferredGroup: async (): Promise<string | null> => {
+    return await BotSettingsModel.get('default_preferred_group_id');
+  },
+
+  setDefaultPreferredGroup: async (groupId: string | null): Promise<void> => {
+    await BotSettingsModel.set('default_preferred_group_id', groupId);
   },
 };
