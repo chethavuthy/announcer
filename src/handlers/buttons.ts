@@ -1,5 +1,5 @@
 import { Context } from 'telegraf';
-import { GroupConfigModel, ButtonClickModel, UserModel } from '../database/models';
+import { GroupConfigModel, ButtonClickModel, UserModel, BotSettingsModel } from '../database/models';
 import { parseWelcomeMessage } from '../utils/messageParser';
 import { ensureUserExists, ensureGroupExists, getChatTitle } from '../utils/validation';
 import { getDefaultMessages } from '../utils/defaults';
@@ -41,10 +41,24 @@ export async function handleButtonClick(ctx: Context): Promise<void> {
   let buttonType = '';
 
   // Get config for the group
-  // In private chat, use user's preferred group; otherwise use current group
-  let configGroupId = groupId;
-  if (isPrivateChat) {
-    configGroupId = await UserModel.getPreferredGroup(userId);
+  // Priority: Global default (if set) > User's personal preference (private chat) > Current group (group chat)
+  let configGroupId: string | null = null;
+  
+  // First check if global default is set - if so, use it for ALL button clicks
+  const globalDefaultGroupId = await BotSettingsModel.getDefaultPreferredGroup();
+  if (globalDefaultGroupId) {
+    // Use global default for all button clicks (overrides group-specific configs)
+    configGroupId = globalDefaultGroupId;
+  } else {
+    // No global default, use group-specific logic
+    if (isPrivateChat) {
+      // In private chat, get user's personal preference (without global default fallback)
+      const user = await UserModel.getByTelegramId(userId);
+      configGroupId = user?.preferred_group_id || null;
+    } else {
+      // In group chat, use current group
+      configGroupId = groupId;
+    }
   }
   
   const config = configGroupId ? await GroupConfigModel.getByGroupId(configGroupId) : null;
