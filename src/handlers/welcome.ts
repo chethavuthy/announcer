@@ -1,5 +1,5 @@
 import { Context } from 'telegraf';
-import { WelcomeMessageModel, GroupModel, WelcomeLogModel, UserModel } from '../database/models';
+import { WelcomeMessageModel, GroupModel, WelcomeLogModel, UserModel, BotSettingsModel } from '../database/models';
 import { parseWelcomeMessage } from '../utils/messageParser';
 import { getInlineButtons } from '../utils/buttons';
 import { ensureUserExists, ensureGroupExists, getChatTitle } from '../utils/validation';
@@ -24,8 +24,20 @@ export async function handleNewMember(ctx: Context): Promise<void> {
     return;
   }
 
-  // Get welcome message from database or use default
-  const welcomeData = await WelcomeMessageModel.getByGroupId(groupId);
+  // Get welcome message - use global default preferred group's message if set, otherwise use current group's message
+  const globalDefaultGroupId = await BotSettingsModel.getDefaultPreferredGroup();
+  let welcomeData;
+  let messageGroupId = groupId;
+  
+  if (globalDefaultGroupId) {
+    // Use global default group's welcome message for all groups
+    welcomeData = await WelcomeMessageModel.getByGroupId(globalDefaultGroupId);
+    messageGroupId = globalDefaultGroupId;
+  } else {
+    // Use current group's welcome message
+    welcomeData = await WelcomeMessageModel.getByGroupId(groupId);
+  }
+  
   const defaultMessage = process.env.WELCOME_MESSAGE || 
     'Welcome {{name}}! 🎉\n\nJoin our community and start trading!\n\nUse the buttons below to get started.';
   
@@ -51,7 +63,8 @@ export async function handleNewMember(ctx: Context): Promise<void> {
     );
 
     // Set preferred group for non-bot users (so they see this group's custom messages in private chat)
-    if (!member.is_bot) {
+    // Only set if no global default is set (global default takes precedence)
+    if (!member.is_bot && !globalDefaultGroupId) {
       await UserModel.setPreferredGroup(userId, groupId);
     }
 
