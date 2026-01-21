@@ -1,7 +1,7 @@
 import { InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup } from 'telegraf/types';
 
 /**
- * Check if text is just a URL (with optional HTML formatting)
+ * Check if text is just a URL or Telegram username (with optional HTML formatting)
  */
 function isOnlyUrl(text: string): string | null {
   if (!text) return null;
@@ -13,6 +13,14 @@ function isOnlyUrl(text: string): string | null {
   const urlPattern = /^https?:\/\/[^\s]+$/i;
   if (urlPattern.test(cleanText)) {
     return cleanText;
+  }
+  
+  // Check if it's a Telegram username/channel (e.g., @chfxandcrypto or chfxandcrypto)
+  const telegramUsernamePattern = /^@?([a-zA-Z0-9_]{5,})$/;
+  const usernameMatch = cleanText.match(telegramUsernamePattern);
+  if (usernameMatch) {
+    const username = usernameMatch[1]; // Without @
+    return `https://t.me/${username}`;
   }
   
   return null;
