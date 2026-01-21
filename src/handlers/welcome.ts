@@ -1,5 +1,5 @@
 import { Context } from 'telegraf';
-import { WelcomeMessageModel, GroupModel, WelcomeLogModel, UserModel, BotSettingsModel } from '../database/models';
+import { WelcomeMessageModel, GroupModel, WelcomeLogModel, UserModel, BotSettingsModel, GroupConfigModel } from '../database/models';
 import { parseWelcomeMessage } from '../utils/messageParser';
 import { getInlineButtons } from '../utils/buttons';
 import { ensureUserExists, ensureGroupExists, getChatTitle } from '../utils/validation';
@@ -28,14 +28,17 @@ export async function handleNewMember(ctx: Context): Promise<void> {
   const globalDefaultGroupId = await BotSettingsModel.getDefaultPreferredGroup();
   let welcomeData;
   let messageGroupId = groupId;
+  let buttonConfig;
   
   if (globalDefaultGroupId) {
-    // Use global default group's welcome message for all groups
+    // Use global default group's welcome message and button config for all groups
     welcomeData = await WelcomeMessageModel.getByGroupId(globalDefaultGroupId);
+    buttonConfig = await GroupConfigModel.getByGroupId(globalDefaultGroupId);
     messageGroupId = globalDefaultGroupId;
   } else {
-    // Use current group's welcome message
+    // Use current group's welcome message and button config
     welcomeData = await WelcomeMessageModel.getByGroupId(groupId);
+    buttonConfig = await GroupConfigModel.getByGroupId(groupId);
   }
   
   const defaultMessage = process.env.WELCOME_MESSAGE || 
@@ -72,7 +75,7 @@ export async function handleNewMember(ctx: Context): Promise<void> {
 
     try {
       await ctx.reply(parsedMessage, {
-        reply_markup: getInlineButtons(),
+        reply_markup: getInlineButtons(buttonConfig),
         parse_mode: 'HTML',
       });
       
