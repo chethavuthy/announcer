@@ -8,8 +8,8 @@ export function parseWelcomeMessage(
   // Replace {{name}} with user's first name
   message = message.replace(/\{\{name\}\}/g, name || 'there');
   
-  // Replace {{username}} with @username or empty string
-  const usernameStr = username ? `@${username.replace('@', '')}` : '';
+  // Replace {{username}} with @username or fallback to name if username doesn't exist
+  const usernameStr = username ? `@${username.replace('@', '')}` : (name || 'there');
   message = message.replace(/\{\{username\}\}/g, usernameStr);
   
   return message;
